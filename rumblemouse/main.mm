@@ -6,19 +6,94 @@
 //  Copyright © 2016 usp. All rights reserved.
 //
 
+#import <mach/mach_time.h>
 #import <Foundation/Foundation.h>
 #import <IOKit/hid/IOHIDManager.h>
 #import <AppKit/AppKit.h>
+#import <QuartzCore/CVDisplayLink.h>
 #include <Carbon/Carbon.h>
 
 // 押下中の方向キーを記憶する。
 NSSet *currentDirections = [NSSet set];
 
+long dv = 127;
+
 // Current D-values.
-long clx = 127;
-long cly = 127;
-long crx = 127;
-long cry = 127;
+long clx = dv;
+long cly = dv;
+long crx = dv;
+long cry = dv;
+
+// Display link.
+CVDisplayLinkRef ref;
+
+// Previous absolute time.
+uint64_t pt;
+
+// Parameter for delta.
+uint64_t m = 320000000;
+
+// Flags
+bool isLinking = false;
+bool isDash = false;
+
+bool isNeutral(long v) {
+    return dv - 10 < v && v < dv + 10;
+}
+
+CGPoint mouseLoc() {
+    CGPoint mouseLoc = [NSEvent mouseLocation];
+    return CGPointMake(mouseLoc.x, [[NSScreen mainScreen] frame].size.height - mouseLoc.y);
+}
+
+void tapEvents(NSArray *events) {
+    for (NSValue *event in events) {
+        CGEventRef eventRef = (CGEventRef)[event pointerValue];
+        CGEventPost(kCGHIDEventTap, eventRef);
+        CFRelease(eventRef);
+    }
+}
+
+CVReturn displayLinkCallback(CVDisplayLinkRef displayLink, const CVTimeStamp *now, const CVTimeStamp *outputTime, CVOptionFlags flagsIn, CVOptionFlags *flagsOut, void *context) {
+    if (pt != 0) {
+        // Get delta.
+        uint64_t ct = mach_absolute_time();
+        uint64_t delta = ct - pt;
+        
+        // Create events.
+        NSMutableArray *events = [NSMutableArray array];
+        
+        if (!isNeutral(clx) || !isNeutral(cly)) {
+            CGPoint c = mouseLoc();
+            CGSize s = [[NSScreen mainScreen] frame].size;
+            float p = ((float)delta / (float)m) * (isDash ? 2 : 1);
+            int x = fmin(fmax(c.x + (clx - dv) * p, 0), s.width);
+            int y = fmin(fmax(c.y + (cly - dv) * p, 0), s.height);
+            CGEventRef ref = CGEventCreateMouseEvent(NULL, kCGEventMouseMoved, CGPointMake(x, y), kCGMouseButtonLeft);
+            [events addObject:[NSValue valueWithPointer:ref]];
+        }
+
+        // Fire!
+        tapEvents(events);
+        
+        pt = ct;
+    } else {
+        pt = mach_absolute_time();
+    }
+    
+    return kCVReturnSuccess;
+}
+
+void manageDisplayLink() {
+    if (isLinking && isNeutral(clx) && isNeutral(cly) && isNeutral(crx) && isNeutral(cry)) {
+        CVDisplayLinkStop(ref);
+        isLinking = false;
+    } else if (!isLinking) {
+        CVDisplayLinkStart(ref);
+        isLinking = true;
+        pt = 0;
+    }
+}
 
 /** 値に応じたキーコードを返す **/
 NSSet* keyCodesForDirection(long value) {
@@ -44,11 +119,6 @@ NSSet* keyCodesForDirection(long value) {
     }
 }
 
-CGPoint mouseLoc() {
-    CGPoint mouseLoc = [NSEvent mouseLocation];
-    return CGPointMake(mouseLoc.x, [[NSScreen mainScreen] frame].size.height - mouseLoc.y);
-}
-
 void handleInput(void *context, IOReturn result, void *sender, IOHIDValueRef valueRef) {
     if (result == kIOReturnSuccess) {
         // イベントの情報を取得する。
@@ -59,13 +129,9 @@ void handleInput(void *context, IOReturn result, void *sender, IOHIDValueRef val
         // 対応するイベントを設定する。
         NSMutableArray *events = [NSMutableArray array];
         
-        NSLog(@"usage: %d, value: %ld", usage, value);
-        
         if (usage == 2) {
-            // Assign the usage to close tab.
-            CGEventRef eventRef = CGEventCreateKeyboardEvent(NULL, kVK_ANSI_W, value != 0);
-            CGEventSetFlags(eventRef, kCGEventFlagMaskCommand);
-            [events addObject:[NSValue valueWithPointer:eventRef]];
+            // Assign the usage to dash button.
+            isDash = value != 0;
         }
 
         if (usage == 3) {
@@ -116,22 +182,40 @@ void handleInput(void *context, IOReturn result, void *sender, IOHIDValueRef val
             [events addObject:[NSValue valueWithPointer:eventRef]];
         }
 
+        if (usage == 9) {
+            // Assign the usage to close tab.
+            CGEventRef eventRef = CGEventCreateKeyboardEvent(NULL, kVK_ANSI_W, value != 0);
+            CGEventSetFlags(eventRef, kCGEventFlagMaskCommand);
+            [events addObject:[NSValue valueWithPointer:eventRef]];
+        }
+
+        if (usage == 10) {
+            // Assign the usage to reload.
+            CGEventRef eventRef = CGEventCreateKeyboardEvent(NULL, kVK_ANSI_R, value != 0);
+            CGEventSetFlags(eventRef, kCGEventFlagMaskCommand);
+            [events addObject:[NSValue valueWithPointer:eventRef]];
+        }
+
         // Assign stick to mouse move or wheel.
 
         if (usage == kHIDUsage_GD_X) {
             clx = value;
+            manageDisplayLink();
         }
 
         if (usage == kHIDUsage_GD_Y) {
             cly = value;
+            manageDisplayLink();
         }
 
         if (usage == kHIDUsage_GD_Z) {
             crx = value;
+            manageDisplayLink();
         }
         
         if (usage == kHIDUsage_GD_Rz) {
             cry = value;
+            manageDisplayLink();
         }
 
         if (usage == kHIDUsage_GD_Hatswitch) {
@@ -160,11 +244,7 @@ void handleInput(void *context, IOReturn result, void *sender, IOHIDValueRef val
         }
         
         // イベントを発火する。
-        for (NSValue *event in events) {
-            CGEventRef eventRef = (CGEventRef)[event pointerValue];
-            CGEventPost(kCGHIDEventTap, eventRef);
-            CFRelease(eventRef);
-        }
+        tapEvents(events);
     }
 }
 
@@ -198,6 +278,10 @@ int main(int argc, const char * argv[]) {
         // 入力ハンドラを設定する。
         IOHIDManagerRegisterInputValueCallback(manager, &handleInput, NULL);
     }
+
+    // Initialize display link.
+    CVDisplayLinkCreateWithActiveCGDisplays(&ref);
+    CVDisplayLinkSetOutputCallback(ref, displayLinkCallback, NULL);
     
     // ループに入り入力を待ち受ける。
     CFRunLoopRun();
