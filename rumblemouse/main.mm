@@ -31,7 +31,8 @@ CVDisplayLinkRef ref;
 uint64_t pt;
 
 // Parameter for delta.
-uint64_t m = 320000000;
+uint64_t lm = 320000000;
+uint64_t rm = 120000000;
 
 // Flags
 bool isLinking = false;
@@ -66,10 +67,18 @@ CVReturn displayLinkCallback(CVDisplayLinkRef displayLink, const CVTimeStamp *no
         if (!isNeutral(clx) || !isNeutral(cly)) {
             CGPoint c = mouseLoc();
             CGSize s = [[NSScreen mainScreen] frame].size;
-            float p = ((float)delta / (float)m) * (isDash ? 2 : 1);
+            float p = ((float)delta / (float)lm) * (isDash ? 2 : 1);
             int x = fmin(fmax(c.x + (clx - dv) * p, 0), s.width);
             int y = fmin(fmax(c.y + (cly - dv) * p, 0), s.height);
             CGEventRef ref = CGEventCreateMouseEvent(NULL, kCGEventMouseMoved, CGPointMake(x, y), kCGMouseButtonLeft);
+            [events addObject:[NSValue valueWithPointer:ref]];
+        }
+        
+        if (!isNeutral(crx) || !isNeutral(cry)) {
+            float p = ((float)delta / (float)rm) * (isDash ? 2 : 1);
+            int x = (crx - dv) * p;
+            int y = (cry - dv) * p;
+            CGEventRef ref = CGEventCreateScrollWheelEvent(NULL, kCGScrollEventUnitPixel, 1, -y, x);
             [events addObject:[NSValue valueWithPointer:ref]];
         }
 
@@ -137,6 +146,7 @@ void handleInput(void *context, IOReturn result, void *sender, IOHIDValueRef val
         if (usage == 3) {
             // Assign the usage to click.
             CGEventRef eventRef = CGEventCreateMouseEvent(NULL, value == 0 ?  kCGEventLeftMouseUp : kCGEventLeftMouseDown, mouseLoc(), kCGMouseButtonLeft);
+            CGEventSetFlags(eventRef, CGEventFlags());
             [events addObject:[NSValue valueWithPointer:eventRef]];
         }
 
@@ -147,7 +157,7 @@ void handleInput(void *context, IOReturn result, void *sender, IOHIDValueRef val
             [events addObject:[NSValue valueWithPointer:eventRef]];
         }
 
-        if (usage == 1) {
+        if (usage == 10) {
             // Assign the usage to re-tab.
             CGEventRef eventRef = CGEventCreateKeyboardEvent(NULL, kVK_ANSI_T, value != 0);
             CGEventSetFlags(eventRef, CGEventFlags(kCGEventFlagMaskCommand | kCGEventFlagMaskShift));
@@ -189,7 +199,7 @@ void handleInput(void *context, IOReturn result, void *sender, IOHIDValueRef val
             [events addObject:[NSValue valueWithPointer:eventRef]];
         }
 
-        if (usage == 10) {
+        if (usage == 1) {
             // Assign the usage to reload.
             CGEventRef eventRef = CGEventCreateKeyboardEvent(NULL, kVK_ANSI_R, value != 0);
             CGEventSetFlags(eventRef, kCGEventFlagMaskCommand);
