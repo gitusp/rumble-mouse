@@ -27,6 +27,9 @@ long cry = dv;
 // Display link.
 CVDisplayLinkRef ref;
 
+// HID Manager
+IOHIDManagerRef manager;
+
 // Previous absolute time.
 uint64_t pt;
 
@@ -37,6 +40,7 @@ uint64_t rm = 120000000;
 // Flags
 bool isLinking = false;
 bool isDash = false;
+bool isDragging = false;
 
 bool isNeutral(long v) {
     return dv - 10 < v && v < dv + 10;
@@ -70,7 +74,7 @@ CVReturn displayLinkCallback(CVDisplayLinkRef displayLink, const CVTimeStamp *no
             float p = ((float)delta / (float)lm) * (isDash ? 2 : 1);
             int x = fmin(fmax(c.x + (clx - dv) * p, 0), s.width);
             int y = fmin(fmax(c.y + (cly - dv) * p, 0), s.height);
-            CGEventRef ref = CGEventCreateMouseEvent(NULL, kCGEventMouseMoved, CGPointMake(x, y), kCGMouseButtonLeft);
+            CGEventRef ref = CGEventCreateMouseEvent(NULL, isDragging ? kCGEventLeftMouseDragged : kCGEventMouseMoved, CGPointMake(x, y), kCGMouseButtonLeft);
             [events addObject:[NSValue valueWithPointer:ref]];
         }
         
@@ -148,6 +152,7 @@ void handleInput(void *context, IOReturn result, void *sender, IOHIDValueRef val
             CGEventRef eventRef = CGEventCreateMouseEvent(NULL, value == 0 ?  kCGEventLeftMouseUp : kCGEventLeftMouseDown, mouseLoc(), kCGMouseButtonLeft);
             CGEventSetFlags(eventRef, CGEventFlags());
             [events addObject:[NSValue valueWithPointer:eventRef]];
+            isDragging = value != 0;
         }
 
         if (usage == 4) {
@@ -155,6 +160,7 @@ void handleInput(void *context, IOReturn result, void *sender, IOHIDValueRef val
             CGEventRef eventRef = CGEventCreateMouseEvent(NULL, value == 0 ?  kCGEventLeftMouseUp : kCGEventLeftMouseDown, mouseLoc(), kCGMouseButtonLeft);
             CGEventSetFlags(eventRef, kCGEventFlagMaskCommand);
             [events addObject:[NSValue valueWithPointer:eventRef]];
+            isDragging = value != 0;
         }
 
         if (usage == 10) {
@@ -258,7 +264,13 @@ void handleInput(void *context, IOReturn result, void *sender, IOHIDValueRef val
     }
 }
 
+void cleanUp() {
+    CFRelease(manager);
+    CVDisplayLinkRelease(ref);
+}
+
 void SignalHandler(int sigraised) {
+    cleanUp();
     fprintf(stderr, "Bye\n");
     exit(0);
 }
@@ -267,7 +279,7 @@ int main(int argc, const char * argv[]) {
     signal(SIGINT, SignalHandler);
     
     // IOHIDManagerをデフォルトの設定で作成する。
-    IOHIDManagerRef manager = IOHIDManagerCreate(kCFAllocatorDefault, kIOHIDManagerOptionNone);
+    manager = IOHIDManagerCreate(kCFAllocatorDefault, kIOHIDManagerOptionNone);
     // マッチングするデバイスの条件を定義する。
     NSDictionary* criteria = @{
                                @kIOHIDDeviceUsagePageKey: @(kHIDPage_GenericDesktop),
@@ -295,4 +307,6 @@ int main(int argc, const char * argv[]) {
     
     // ループに入り入力を待ち受ける。
     CFRunLoopRun();
+    
+    cleanUp();
 }
