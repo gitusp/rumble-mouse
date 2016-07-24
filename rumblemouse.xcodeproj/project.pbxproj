@@ -7,7 +7,10 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		6A0185E71D43161C00D38ABF /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = 6A0185E61D43161C00D38ABF /* main.m */; };
+		6A0185E71D43161C00D38ABF /* main.mm in Sources */ = {isa = PBXBuildFile; fileRef = 6A0185E61D43161C00D38ABF /* main.mm */; };
+		6A0185F31D431B8E00D38ABF /* IOKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 6A0185ED1D4316F800D38ABF /* IOKit.framework */; };
+		6A0185F41D431B9500D38ABF /* AppKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 6A0185F11D431B6E00D38ABF /* AppKit.framework */; };
+		6A32C9911D437D0D005AB58A /* QuartzCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 6A32C9901D437D0D005AB58A /* QuartzCore.framework */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -24,7 +27,10 @@
 
 /* Begin PBXFileReference section */
 		6A0185E31D43161C00D38ABF /* rumblemouse */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = rumblemouse; sourceTree = BUILT_PRODUCTS_DIR; };
-		6A0185E61D43161C00D38ABF /* main.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = main.m; sourceTree = "<group>"; };
+		6A0185E61D43161C00D38ABF /* main.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = main.mm; sourceTree = "<group>"; };
+		6A0185ED1D4316F800D38ABF /* IOKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = IOKit.framework; path = System/Library/Frameworks/IOKit.framework; sourceTree = SDKROOT; };
+		6A0185F11D431B6E00D38ABF /* AppKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AppKit.framework; path = System/Library/Frameworks/AppKit.framework; sourceTree = SDKROOT; };
+		6A32C9901D437D0D005AB58A /* QuartzCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = QuartzCore.framework; path = System/Library/Frameworks/QuartzCore.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -32,6 +38,9 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				6A32C9911D437D0D005AB58A /* QuartzCore.framework in Frameworks */,
+				6A0185F41D431B9500D38ABF /* AppKit.framework in Frameworks */,
+				6A0185F31D431B8E00D38ABF /* IOKit.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -41,6 +50,9 @@
 		6A0185DA1D43161C00D38ABF = {
 			isa = PBXGroup;
 			children = (
+				6A32C9901D437D0D005AB58A /* QuartzCore.framework */,
+				6A0185F11D431B6E00D38ABF /* AppKit.framework */,
+				6A0185ED1D4316F800D38ABF /* IOKit.framework */,
 				6A0185E51D43161C00D38ABF /* rumblemouse */,
 				6A0185E41D43161C00D38ABF /* Products */,
 			);
@@ -57,7 +69,7 @@
 		6A0185E51D43161C00D38ABF /* rumblemouse */ = {
 			isa = PBXGroup;
 			children = (
-				6A0185E61D43161C00D38ABF /* main.m */,
+				6A0185E61D43161C00D38ABF /* main.mm */,
 			);
 			path = rumblemouse;
 			sourceTree = "<group>";
@@ -118,7 +130,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				6A0185E71D43161C00D38ABF /* main.m in Sources */,
+				6A0185E71D43161C00D38ABF /* main.mm in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -239,6 +251,7 @@
 				6A0185EC1D43161C00D38ABF /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
 	};
