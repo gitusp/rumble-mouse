@@ -16,13 +16,14 @@
 // 押下中の方向キーを記憶する。
 NSSet *currentDirections = [NSSet set];
 
-long dv = 127;
+const long neutralValue = 127;
+const long threashold = 16;
 
 // Current D-values.
-long clx = dv;
-long cly = dv;
-long crx = dv;
-long cry = dv;
+long clx = neutralValue;
+long cly = neutralValue;
+long crx = neutralValue;
+long cry = neutralValue;
 
 // Display link.
 CVDisplayLinkRef ref;
@@ -39,11 +40,11 @@ uint64_t rm = 120000000;
 
 // Flags
 bool isLinking = false;
-bool isDash = false;
+bool isAlternated = false;
 bool isDragging = false;
 
 bool isNeutral(long v) {
-    return dv - 10 < v && v < dv + 10;
+    return neutralValue - threashold < v && v < neutralValue + threashold;
 }
 
 CGPoint mouseLoc() {
@@ -71,17 +72,17 @@ CVReturn displayLinkCallback(CVDisplayLinkRef displayLink, const CVTimeStamp *no
         if (!isNeutral(clx) || !isNeutral(cly)) {
             CGPoint c = mouseLoc();
             CGSize s = [[NSScreen mainScreen] frame].size;
-            float p = ((float)delta / (float)lm) * (isDash ? 2 : 1);
-            int x = fmin(fmax(c.x + (clx - dv) * p, 0), s.width);
-            int y = fmin(fmax(c.y + (cly - dv) * p, 0), s.height);
+            float p = ((float)delta / (float)lm) * (isAlternated ? 2 : 1);
+            int x = fmin(fmax(c.x + (clx - neutralValue) * p, 0), s.width);
+            int y = fmin(fmax(c.y + (cly - neutralValue) * p, 0), s.height);
             CGEventRef ref = CGEventCreateMouseEvent(NULL, isDragging ? kCGEventLeftMouseDragged : kCGEventMouseMoved, CGPointMake(x, y), kCGMouseButtonLeft);
             [events addObject:[NSValue valueWithPointer:ref]];
         }
         
         if (!isNeutral(crx) || !isNeutral(cry)) {
-            float p = ((float)delta / (float)rm) * (isDash ? 2 : 1);
-            int x = (crx - dv) * p;
-            int y = (cry - dv) * p;
+            float p = ((float)delta / (float)rm) * (isAlternated ? 2 : 1);
+            int x = (crx - neutralValue) * p;
+            int y = (cry - neutralValue) * p;
             CGEventRef ref = CGEventCreateScrollWheelEvent(NULL, kCGScrollEventUnitPixel, 1, -y, x);
             [events addObject:[NSValue valueWithPointer:ref]];
         }
@@ -143,14 +144,15 @@ void handleInput(void *context, IOReturn result, void *sender, IOHIDValueRef val
         NSMutableArray *events = [NSMutableArray array];
         
         if (usage == 2) {
-            // Assign the usage to dash button.
-            isDash = value != 0;
+            // Assign the usage to alternative.
+            isAlternated = value != 0;
         }
 
         if (usage == 3) {
             // Assign the usage to click.
             CGEventRef eventRef = CGEventCreateMouseEvent(NULL, value == 0 ?  kCGEventLeftMouseUp : kCGEventLeftMouseDown, mouseLoc(), kCGMouseButtonLeft);
-            CGEventSetFlags(eventRef, CGEventFlags());
+            CGEventFlags f = isAlternated ? kCGEventFlagMaskControl : CGEventFlags();
+            CGEventSetFlags(eventRef, f);
             [events addObject:[NSValue valueWithPointer:eventRef]];
             isDragging = value != 0;
         }
@@ -243,6 +245,8 @@ void handleInput(void *context, IOReturn result, void *sender, IOHIDValueRef val
                     int code = 0;
                     [keyCode getValue:&code];
                     CGEventRef eventRef = CGEventCreateKeyboardEvent(NULL, code, NO);
+                    CGEventFlags f = isAlternated ? kCGEventFlagMaskControl : CGEventFlags();
+                    CGEventSetFlags(eventRef, f);
                     [events addObject:[NSValue valueWithPointer:eventRef]];
                 }
             }
@@ -252,6 +256,8 @@ void handleInput(void *context, IOReturn result, void *sender, IOHIDValueRef val
                     int code = 0;
                     [keyCode getValue:&code];
                     CGEventRef eventRef = CGEventCreateKeyboardEvent(NULL, code, YES);
+                    CGEventFlags f = isAlternated ? kCGEventFlagMaskControl : CGEventFlags();
+                    CGEventSetFlags(eventRef, f);
                     [events addObject:[NSValue valueWithPointer:eventRef]];
                 }
             }
